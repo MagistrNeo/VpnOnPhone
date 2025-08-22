@@ -1,0 +1,73 @@
+package com.example.netfrog
+
+import android.content.Intent
+import android.net.VpnService
+import android.os.Bundle
+import android.os.ParcelFileDescriptor
+import android.widget.Button
+import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
+import java.io.FileInputStream
+import java.net.Socket
+import java.util.concurrent.atomic.AtomicBoolean
+
+class MainActivity : ComponentActivity() {
+    private lateinit var statusText: TextView
+    private lateinit var startButton: Button
+    private lateinit var stopButton: Button
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        initViews()
+        initPython()
+        setupClickListeners()
+    }
+
+    private fun initViews() {
+        statusText = findViewById(R.id.status_text)
+        startButton = findViewById(R.id.start_button)
+        stopButton = findViewById(R.id.stop_button)
+    }
+
+    private fun initPython() {
+        if (!Python.isStarted()) {
+            Python.start(AndroidPlatform(this))
+        }
+    }
+
+    private fun setupClickListeners() {
+        startButton.setOnClickListener {
+            runPythonScript("start")
+        }
+
+        stopButton.setOnClickListener {
+            runPythonScript("stop")
+            updateStatus("VPN остановлен")
+        }
+    }
+
+    private fun runPythonScript(action: String) {
+        try {
+            val proxyInstance = Python.getInstance()
+                .getModule("ProxyConfig")["proxy_instance"]
+            val result = when (action) {
+                "start" -> proxyInstance?.callAttr("start").toString()
+                "stop" -> proxyInstance?.callAttr("stop").toString()
+                else -> "Unknown action"
+            }
+            updateStatus(result)
+        } catch (e: Exception) {
+            updateStatus("Ошибка: ${e.message}")
+        }
+    }
+
+
+    private fun updateStatus(message: String) {
+        runOnUiThread { statusText.text = message }
+    }
+}
